@@ -32,7 +32,7 @@ def submit_form():
 
         # Subir el archivo a Google Drive
         drive_service = build('drive', 'v3', credentials=CREDS)
-        file_metadata = {'name': file.filename, 'parents': ['ID_CARPETA_GOOGLE_DRIVE']}
+        file_metadata = {'name': file.filename, 'parents': ['1GM95-idW7Sq-MIja8NhtkrUGE-dTkbLk']}
         media = MediaFileUpload(file_path, resumable=True)
         file_drive = drive_service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
         file_link = file_drive.get('webViewLink')
