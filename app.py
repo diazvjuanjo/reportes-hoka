@@ -63,6 +63,7 @@ def submit_form():
 
         # Guardar los datos en Google Sheets (incluyendo el enlace del archivo)
         sheet.append_row([
+            data.get("name"),
             data.get("cif"),
             data.get("month"),
             data.get("year"),
