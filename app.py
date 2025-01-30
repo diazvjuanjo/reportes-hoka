@@ -1,67 +1,49 @@
-import json
 import os
+import json
 from flask import Flask, request, jsonify
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.service_account import Credentials
-import gspread
-
 
 app = Flask(__name__)
 
-# Configuración de Google APIs
-SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
-CREDS = Credentials.from_service_account_info(
-    json.loads(os.environ["GOOGLE_APPLICATION_CREDENTIALS"]), scopes=SCOPES
-)
+# Cargar credenciales desde variables de entorno o archivo
+SCOPES = ["https://www.googleapis.com/auth/drive"]
+if os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+    CREDS = Credentials.from_service_account_info(json.loads(os.getenv("GOOGLE_APPLICATION_CREDENTIALS")), scopes=SCOPES)
+else:
+    CREDS = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
 
-# Inicializar Google Sheets
-sheet_service = gspread.authorize(CREDS)
-SHEET_NAME = "Reportes Hoka"
-
-# Ruta de subida de archivos
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# ID de la carpeta en Google Drive donde se guardarán los archivos
+GOOGLE_DRIVE_FOLDER_ID = "1GM95-idW7Sq-MIja8NhtkrUGE-dTkbLk"  
 
 @app.route("/submit-form", methods=["POST"])
 def submit_form():
     try:
-        # Obtener datos del formulario
         data = request.form
-        file = request.files['document']
+        file = request.files.get("document")
 
-        # Guardar el archivo temporalmente
-        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-        file.save(file_path)
+        # Subir el archivo a Google Drive si existe
+        file_link = "No se adjuntó archivo"
+        if file:
+            file_path = f"/tmp/{file.filename}"
+            file.save(file_path)
 
-        # Subir el archivo a Google Drive
-        drive_service = build('drive', 'v3', credentials=CREDS)
-        file_metadata = {'name': file.filename, 'parents': ['1GM95-idW7Sq-MIja8NhtkrUGE-dTkbLk']}
-        media = MediaFileUpload(file_path, resumable=True)
-        file_drive = drive_service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
-        file_link = file_drive.get('webViewLink')
+            drive_service = build("drive", "v3", credentials=CREDS)
+            file_metadata = {
+                "name": file.filename,
+                "parents": [GOOGLE_DRIVE_FOLDER_ID]
+            }
+            media = MediaFileUpload(file_path, resumable=True)
+            uploaded_file = drive_service.files().create(body=file_metadata, media_body=media, fields="id, webViewLink").execute()
+            file_link = uploaded_file.get("webViewLink")
 
-        # Guardar datos en Google Sheets
-        sheet = sheet_service.open(SHEET_NAME)
-        cif = data['cif']
-
-        # Verificar si existe una hoja para este CIF
-        try:
-            worksheet = sheet.worksheet(cif)
-        except gspread.exceptions.WorksheetNotFound:
-            worksheet = sheet.add_worksheet(title=cif, rows=100, cols=20)
-
-        # Agregar datos al Google Sheets
-        worksheet.append_row([
-            data['month'],
-            data['year'],
-            data['hoka-rank'],
-            data['road-rank'],
-            data['trail-rank'],
-            file_link
-        ])
-
-        return jsonify({"status": "success", "message": "Formulario enviado correctamente."})
+        # Respuesta del servidor
+        return jsonify({
+            "status": "success",
+            "message": "Formulario enviado correctamente.",
+            "file_link": file_link
+        })
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
