@@ -1,12 +1,21 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS  # Importar CORS
 import os
 import json
 import gspread
-from flask import Flask, request, jsonify
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
+CORS(app, origins=["https://www.comercialudra.es"])  # Permitir solicitudes desde tu web
+
+# Resto del código...
+
+
+
+app = Flask(__name__)
+CORS(app, origins=["https://www.comercialudra.es"])  # Permitir solo solicitudes desde tu dominio
 
 # Definir los alcances (permisos) para Google Drive y Google Sheets
 SCOPES = [
