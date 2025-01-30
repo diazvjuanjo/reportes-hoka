@@ -14,7 +14,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-# Cargar credenciales desde variables de entorno o desde un archivo
+# Cargar credenciales desde variables de entorno o archivo JSON
 if os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
     CREDS = Credentials.from_service_account_info(
         json.loads(os.getenv("GOOGLE_APPLICATION_CREDENTIALS")), scopes=SCOPES
@@ -38,20 +38,7 @@ def submit_form():
         data = request.form
         file = request.files.get("document")
 
-        # Guardar los datos del formulario en Google Sheets
-        sheet.append_row([
-            data.get("cif"),
-            data.get("month"),
-            data.get("year"),
-            data.get("road-rank"),
-            data.get("trail-rank"),
-            data.get("top1"),
-            data.get("top2"),
-            data.get("top3"),
-            data.get("observations")
-        ])
-
-        # Subir archivo a Google Drive si existe
+        # Subir archivo a Google Drive (si hay archivo adjunto)
         file_link = "No se adjuntó archivo"
         if file:
             file_path = f"/tmp/{file.filename}"
@@ -63,7 +50,21 @@ def submit_form():
             uploaded_file = drive_service.files().create(
                 body=file_metadata, media_body=media, fields="id, webViewLink"
             ).execute()
-            file_link = uploaded_file.get("webViewLink")
+            file_link = uploaded_file.get("webViewLink")  # Guardamos el enlace del archivo
+
+        # Guardar los datos en Google Sheets (incluyendo el enlace del archivo)
+        sheet.append_row([
+            data.get("cif"),
+            data.get("month"),
+            data.get("year"),
+            data.get("road-rank"),
+            data.get("trail-rank"),
+            data.get("top1"),
+            data.get("top2"),
+            data.get("top3"),
+            data.get("observations"),
+            file_link  # Guardamos el enlace del archivo en Sheets
+        ])
 
         return jsonify({
             "status": "success",
@@ -76,4 +77,5 @@ def submit_form():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
 
