@@ -10,10 +10,6 @@ from google.oauth2.service_account import Credentials
 app = Flask(__name__)
 CORS(app, origins=["https://www.comercialudra.es"])  # Permitir solicitudes desde tu web
 
-# Resto del código...
-
-
-
 app = Flask(__name__)
 CORS(app, origins=["https://www.comercialudra.es"])  # Permitir solo solicitudes desde tu dominio
 
@@ -44,42 +40,68 @@ sheet = client.open_by_key(GOOGLE_SHEET_ID).sheet1  # Accede a la primera hoja
 @app.route("/submit-form", methods=["POST"])
 def submit_form():
     try:
-        data = request.form
+        # Obtener datos del formulario
+        name = request.form.get("name")  # Nuevo campo: Nombre Comercial
+        cif = request.form.get("cif")
+        month = request.form.get("month")
+        year = request.form.get("year")
+        road_rank = request.form.get("road-rank")
+        trail_rank = request.form.get("trail-rank")
+        
+        # Obtener datos del ranking de carretera
+        top1_carretera = request.form.get("top1")
+        top2_carretera = request.form.get("top2")
+        top3_carretera = request.form.get("top3")
+        other1 = request.form.get("other1", "")  # Si es "Otro", obtener el valor
+        other2 = request.form.get("other2", "")
+        other3 = request.form.get("other3", "")
+
+        # Obtener datos del ranking de trail
+        top1_trail = request.form.get("top4")
+        top2_trail = request.form.get("top5")
+        top3_trail = request.form.get("top6")
+        other4 = request.form.get("other4", "")  # Si es "Otro", obtener el valor
+        other5 = request.form.get("other5", "")
+        other6 = request.form.get("other6", "")
+
+        observations = request.form.get("observations", "")
+
+        # Manejo de archivos
         file = request.files.get("document")
-
-        # Subir archivo a Google Drive (si hay archivo adjunto)
-        file_link = "No se adjuntó archivo"
+        file_link = "No adjunto"
+        
         if file:
-            file_path = f"/tmp/{file.filename}"
-            file.save(file_path)
-
-            drive_service = build("drive", "v3", credentials=CREDS)
-            file_metadata = {"name": file.filename, "parents": [GOOGLE_DRIVE_FOLDER_ID]}
-            media = MediaFileUpload(file_path, resumable=True)
+            # Subir el archivo a Google Drive
+            file_metadata = {
+                "name": file.filename,
+                "parents": [GOOGLE_DRIVE_FOLDER_ID]
+            }
+            media = MediaFileUpload(file, mimetype=file.content_type)
             uploaded_file = drive_service.files().create(
-                body=file_metadata, media_body=media, fields="id, webViewLink"
+                body=file_metadata,
+                media_body=media,
+                fields="id"
             ).execute()
-            file_link = uploaded_file.get("webViewLink")  # Guardamos el enlace del archivo
+            file_link = f"https://drive.google.com/file/d/{uploaded_file['id']}/view?usp=drivesdk"
 
-        # Guardar los datos en Google Sheets (incluyendo el enlace del archivo)
+        # Guardar los datos en Google Sheets
         sheet.append_row([
-            data.get("name"),
-            data.get("cif"),
-            data.get("month"),
-            data.get("year"),
-            data.get("road-rank"),
-            data.get("trail-rank"),
-            data.get("top1"),
-            data.get("top2"),
-            data.get("top3"),
-            data.get("observations"),
-            file_link  # Guardamos el enlace del archivo en Sheets
+            name, cif, month, year, road_rank, trail_rank, 
+            top1_carretera, top2_carretera, top3_carretera, other1, other2, other3,
+            top1_trail, top2_trail, top3_trail, other4, other5, other6,
+            observations, file_link
         ])
 
         return jsonify({
             "status": "success",
             "message": "Formulario enviado correctamente.",
             "file_link": file_link
+        })
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
         })
 
     except Exception as e:
